@@ -28,7 +28,7 @@ jobs:
       - name: Build 
         run: npm run build --if-present
 
-      - name: Test (si dispo)
+      - name: Test
         run: npm test --if-present --silent
 
   back:
