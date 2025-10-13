@@ -2,6 +2,14 @@
 // https://karma-runner.github.io/1.0/config/configuration-file.html
 
 module.exports = function (config) {
+  const isCI = !!process.env.CI;
+
+  // 🔹 Si on est dans GitHub Actions (variable CI=true),
+  // on va utiliser le Chrome intégré de Puppeteer (pas besoin d'installation système)
+  if (isCI) {
+    process.env.CHROME_BIN = require('puppeteer').executablePath();
+  }
+
   config.set({
     basePath: '',
     frameworks: ['jasmine', '@angular-devkit/build-angular'],
@@ -13,16 +21,11 @@ module.exports = function (config) {
       require('@angular-devkit/build-angular/plugins/karma')
     ],
     client: {
-      jasmine: {
-        // you can add configuration options for Jasmine here
-        // the possible options are listed at https://jasmine.github.io/api/edge/Configuration.html
-        // for example, you can disable the random execution with `random: false`
-        // or set a specific seed with `seed: 4321`
-      },
-      clearContext: false // leave Jasmine Spec Runner output visible in browser
+      jasmine: {},
+      clearContext: false
     },
     jasmineHtmlReporter: {
-      suppressAll: true // removes the duplicated traces
+      suppressAll: true
     },
     coverageReporter: {
       dir: require('path').join(__dirname, './coverage/bobapp'),
@@ -36,22 +39,21 @@ module.exports = function (config) {
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
-    
-     autoWatch: !isCI,
-    singleRun: isCI,
 
-    browsers: [isCI ? 'ChromeHeadlessCI' : 'Chrome'],
+    autoWatch: !isCI,
+    singleRun: isCI,
+    browsers: [isCI ? 'ChromeHeadlessNoSandbox' : 'Chrome'],
 
     customLaunchers: {
-      ChromeHeadlessCI: {
+      ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',
         flags: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-gpu',
-          '--no-first-run',
+          '--disable-dev-shm-usage',
           '--no-zygote',
-          '--disable-dev-shm-usage'
+          '--disable-software-rasterizer'
         ]
       }
     },
