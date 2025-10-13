@@ -14,29 +14,18 @@ jobs:
         working-directory: front
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "18"     # Angular 14 préfère 16/18
           cache: "npm"
           cache-dependency-path: "front/package-lock.json"
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Setup Chrome
-        id: setup-chrome
-        uses: browser-actions/setup-chrome@v1
-
-      - name: Export CHROME_BIN
-        run: echo "CHROME_BIN=${{ steps.setup-chrome.outputs.chrome-path }}" >> $GITHUB_ENV
-
       - name: Build
         run: npm run build --if-present
-
-      - name: Test (headless, CI-safe)
-        run: npm test -- --watch=false --browsers=ChromeHeadlessCI
+      - name: Test (headless via Puppeteer)
+        run: npm run test:
 
   back:
     name: Back-end CI
