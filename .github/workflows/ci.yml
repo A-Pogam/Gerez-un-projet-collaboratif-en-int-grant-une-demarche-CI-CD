@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
 
 jobs:
@@ -22,14 +22,21 @@ jobs:
           cache: "npm"
           cache-dependency-path: "front/package-lock.json"
 
-      - name: Install deps
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build 
+      - name: Setup Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Export CHROME_BIN
+        run: echo "CHROME_BIN=${{ steps.setup-chrome.outputs.chrome-path }}" >> $GITHUB_ENV
+
+      - name: Build
         run: npm run build --if-present
 
-      - name: Test
-        run: npm test --if-present --silent
+      - name: Test (headless, CI-safe)
+        run: npm test -- --watch=false --browsers=ChromeHeadlessCI
 
   back:
     name: Back-end CI
@@ -43,9 +50,9 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
+          distribution: temurin
+          java-version: "17"
+          cache: maven
 
       - name: Maven verify (tests inclus)
         run: mvn -B clean verify
