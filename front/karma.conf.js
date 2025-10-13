@@ -36,9 +36,26 @@ module.exports = function (config) {
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
-    autoWatch: true,
-    browsers: ['Chrome'],
-    singleRun: false,
+    
+     autoWatch: !isCI,
+    singleRun: isCI,
+
+    browsers: [isCI ? 'ChromeHeadlessCI' : 'Chrome'],
+
+    customLaunchers: {
+      ChromeHeadlessCI: {
+        base: 'ChromeHeadless',
+        flags: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-dev-shm-usage'
+        ]
+      }
+    },
+
     restartOnFileChange: true
   });
 };
