@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"     # Angular 14 préfère 16/18
+          node-version: "18"     
           cache: "npm"
           cache-dependency-path: "front/package-lock.json"
       - name: Install dependencies
@@ -25,7 +25,7 @@ jobs:
       - name: Build
         run: npm run build --if-present
       - name: Test (headless via Puppeteer)
-        run: npm run test:
+        run: npm run test:ci
 
   back:
     name: Back-end CI
