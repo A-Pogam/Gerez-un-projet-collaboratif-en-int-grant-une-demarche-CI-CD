@@ -31,15 +31,22 @@ jobs:
       - name: Test (headless via Puppeteer)
         run: npm run test:ci
 
+      - name: Debug - list front outputs
+        run: |
+          pwd
+          ls -la
+          ls -la reports || true
+          ls -la coverage || true
+
       # Affichage des tests FRONT dans l'UI GitHub (JUnit XML)
       - name: Test Report (Front)
-        uses: phoenix-actions/test-reporting@v8
+        uses: phoenix-actions/test-reporting@v15
         if: success() || failure()
         with:
           name: "Front - Karma/Jasmine"
-          path: "reports/*.xml"        # front/reports/karma-junit.xml
-          reporter: "java-junit"
           working-directory: "front"
+          path: "reports/**/*.xml"
+          reporter: "java-junit"
 
       # Uploade la couverture Angular (HTML)
       - name: Upload Front Coverage
@@ -70,7 +77,7 @@ jobs:
 
       # Affichage des tests BACK dans l'UI GitHub (JUnit XML)
       - name: Test Report (Back)
-        uses: phoenix-actions/test-reporting@v8
+        uses: phoenix-actions/test-reporting@v15
         if: success() || failure()
         with:
           name: "Back - JUnit"
