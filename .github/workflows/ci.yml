@@ -14,18 +14,40 @@ jobs:
         working-directory: front
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"     
+          node-version: "18"
           cache: "npm"
           cache-dependency-path: "front/package-lock.json"
+
       - name: Install dependencies
         run: npm ci
+
       - name: Build
         run: npm run build --if-present
+
       - name: Test (headless via Puppeteer)
         run: npm run test:ci
+
+      # Affichage des tests FRONT dans l'UI GitHub (JUnit XML)
+      - name: Test Report (Front)
+        uses: phoenix-actions/test-reporting@v8
+        if: success() || failure()
+        with:
+          name: "Front - Karma/Jasmine"
+          path: "reports/*.xml"        # front/reports/karma-junit.xml
+          reporter: "java-junit"
+          working-directory: "front"
+
+      # Uploade la couverture Angular (HTML)
+      - name: Upload Front Coverage
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: front-coverage
+          path: front/coverage/bobapp/**
 
   back:
     name: Back-end CI
@@ -43,5 +65,24 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Maven verify (tests inclus)
+      - name: Maven verify (tests + JaCoCo)
         run: mvn -B clean verify
+
+      # Affichage des tests BACK dans l'UI GitHub (JUnit XML)
+      - name: Test Report (Back)
+        uses: phoenix-actions/test-reporting@v8
+        if: success() || failure()
+        with:
+          name: "Back - JUnit"
+          path: "back/target/surefire-reports/*.xml"
+          reporter: "java-junit"
+
+      # Uploade JaCoCo HTML & XML
+      - name: Upload Back JaCoCo Report
+        uses: actions/upload-artifact@v4
+        if: success() || failure()
+        with:
+          name: back-jacoco
+          path: |
+            back/target/site/jacoco/**
+            back/target/site/jacoco/jacoco.xml
