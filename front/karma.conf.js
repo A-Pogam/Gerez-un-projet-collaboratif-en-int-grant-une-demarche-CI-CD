@@ -14,24 +14,42 @@ module.exports = function (config) {
       require('karma-chrome-launcher'),
       require('karma-jasmine-html-reporter'),
       require('karma-coverage'),
+      require('karma-junit-reporter'),
       require('@angular-devkit/build-angular/plugins/karma')
     ],
     client: { jasmine: {}, clearContext: false },
+
     jasmineHtmlReporter: { suppressAll: true },
+
+    // Coverage (HTML + résumé). 'lcovonly' si Codecov/Sonar plus tard
     coverageReporter: {
       dir: require('path').join(__dirname, './coverage/bobapp'),
       subdir: '.',
-      reporters: [{ type: 'html' }, { type: 'text-summary' }]
+      reporters: [
+        { type: 'html' },
+        { type: 'text-summary' }
+        // , { type: 'lcovonly', file: 'lcov.info' }
+      ]
     },
-    reporters: ['progress', 'kjhtml'],
+
+    // En local:  reporter HTML. En CI: JUnit pour GitHub Test Reporting
+    reporters: isCI ? ['progress', 'junit'] : ['progress', 'kjhtml'],
+
+    // Sortie JUnit par phoenix-actions/test-reporting
+    junitReporter: {
+      outputDir: 'reports',          // => front/reports/
+      outputFile: 'karma-junit.xml', // => front/reports/karma-junit.xml
+      useBrowserName: true
+    },
+
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
 
     autoWatch: !isCI,
     singleRun: isCI,
-    browsers: [isCI ? 'ChromeHeadlessCI' : 'Chrome'],
 
+    browsers: [isCI ? 'ChromeHeadlessCI' : 'Chrome'],
     customLaunchers: {
       ChromeHeadlessCI: {
         base: 'ChromeHeadless',
