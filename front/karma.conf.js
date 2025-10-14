@@ -21,7 +21,7 @@ module.exports = function (config) {
 
     jasmineHtmlReporter: { suppressAll: true },
 
-    // Coverage (HTML + résumé). 'lcovonly' si Codecov/Sonar plus tard
+    // Coverage (HTML + résumé). 'lcovonly' Sonar plus tard
     coverageReporter: {
       dir: require('path').join(__dirname, './coverage/bobapp'),
       subdir: '.',
