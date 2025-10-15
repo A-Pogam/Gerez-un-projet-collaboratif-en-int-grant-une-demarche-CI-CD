@@ -21,14 +21,14 @@ module.exports = function (config) {
 
     jasmineHtmlReporter: { suppressAll: true },
 
-    // Coverage (HTML + résumé). 'lcovonly' Sonar plus tard
+    // Coverage (HTML + résumé) + 'lcovonly'
     coverageReporter: {
       dir: require('path').join(__dirname, './coverage/bobapp'),
       subdir: '.',
       reporters: [
         { type: 'html' },
-        { type: 'text-summary' }
-        // , { type: 'lcovonly', file: 'lcov.info' }
+        { type: 'text-summary' },
+        { type: 'lcovonly', file: 'lcov.info' }
       ]
     },
 
