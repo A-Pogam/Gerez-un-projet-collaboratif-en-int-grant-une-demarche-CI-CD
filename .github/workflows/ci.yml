@@ -145,8 +145,8 @@ jobs:
   docker-publish:
     name: Build & Push Docker images
     runs-on: ubuntu-latest
-    needs: [front, back, sonar]   # si tu veux publier seulement si Sonar passe aussi
-    if: github.ref == 'refs/heads/main'    # 👉 ne push que sur main (sécurise)
+    needs: [front, back, sonar]   
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
 
