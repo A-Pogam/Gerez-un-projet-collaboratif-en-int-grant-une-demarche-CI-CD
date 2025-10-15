@@ -102,13 +102,42 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+  
+      # --- BACK: compiler + tests pour générer classes + jacoco.xml
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: "17"
           distribution: temurin
+  
+      - name: Build back (tests + JaCoCo)
+        run: mvn -B -f back/pom.xml clean verify
+        # produit:
+        #   back/target/classes
+        #   back/target/site/jacoco/jacoco.xml
+  
+      # --- FRONT: tests avec couverture pour lcov.info
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "front/package-lock.json"
+  
+      - name: Install front deps
+        working-directory: front
+        run: npm ci
+  
+      - name: Test front (headless + coverage)
+        working-directory: front
+        run: npm run test:ci -- --code-coverage
+        # produit: front/coverage/bobapp/lcov.info
+  
+      # --- Scan Sonar
       - name: Sonar scan (front + back)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
+        # with:
+        #   args: -Dsonar.qualitygate.wait=true
