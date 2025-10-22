@@ -146,7 +146,7 @@ jobs:
     name: Build & Push Docker images
     runs-on: ubuntu-latest
     needs: [front, back, sonar]
-    # Publie uniquement sur push de main dans mon fork (secrets disponibles)
+    # Publie uniquement sur push de main dans mon fork 
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
     steps:
     - uses: actions/checkout@v4
