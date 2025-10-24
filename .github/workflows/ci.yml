@@ -6,8 +6,9 @@ on:
   pull_request:
 
 jobs:
-  front:
-    name: Front-end CI
+  # FRONT: tests + coverage -> ARTIFACTS
+  front-tests:
+    name: Front tests & coverage (artifact)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -15,49 +16,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "npm"
           cache-dependency-path: "front/package-lock.json"
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
+      - run: npm run build --if-present
 
-      - name: Build
-        run: npm run build --if-present
+      # Tests headless + couverture LCOV (produit lcov.info + JUnit via karma-junit-reporter)
+      - run: npm run test:ci -- --code-coverage
 
-      - name: Test (headless via Puppeteer)
-        run: npm run test:ci
-
-      - name: Debug - list front outputs
-        run: |
-          pwd
-          ls -la
-          ls -la reports || true
-          ls -la coverage || true
-
-      # Affichage des tests FRONT dans l'UI GitHub (JUnit XML)
-      - name: Test Report (Front)
-        uses: phoenix-actions/test-reporting@v15
-        if: success() || failure()
-        with:
-          name: "Front - Karma/Jasmine"
-          working-directory: "front"
-          path: "reports/**/*.xml"
-          reporter: "java-junit"
-
-      # Uploade la couverture Angular (HTML)
-      - name: Upload Front Coverage
+      # Artifacts: résultats de tests (JUnit XML)
+      - name: Upload test results (Front)
         uses: actions/upload-artifact@v4
-        if: success() || failure()
         with:
-          name: front-coverage
-          path: front/coverage/bobapp/**
+          name: test-results-front
+          path: front/reports/**/*.xml
+          if-no-files-found: warn
 
-  back:
-    name: Back-end CI
+      # Artifacts: couverture (HTML + lcov.info)
+      - name: Upload coverage (Front)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-front
+          path: front/coverage/bobapp/**
+          if-no-files-found: warn
+
+  # BACK: tests + JaCoCo -> ARTIFACTS
+  back-tests:
+    name: Back tests & coverage (artifact)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -65,96 +54,144 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
 
-      - name: Maven verify (tests + JaCoCo)
-        run: mvn -B clean verify
+      - run: mvn -B clean verify
 
-      # Affichage des tests BACK dans l'UI GitHub (JUnit XML)
-      - name: Test Report (Back)
-        uses: phoenix-actions/test-reporting@v15
-        if: success() || failure()
-        with:
-          name: "Back - JUnit"
-          path: "back/target/surefire-reports/*.xml"
-          reporter: "java-junit"
-
-      # Uploade JaCoCo HTML & XML
-      - name: Upload Back JaCoCo Report
+      # Artifacts: résultats de tests (JUnit XML)
+      - name: Upload test results (Back)
         uses: actions/upload-artifact@v4
-        if: success() || failure()
         with:
-          name: back-jacoco
+          name: test-results-back
+          path: back/target/surefire-reports/*.xml
+          if-no-files-found: warn
+
+      # Artifacts: JaCoCo (HTML + XML)
+      - name: Upload coverage (Back)
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-back
           path: |
             back/target/site/jacoco/**
             back/target/site/jacoco/jacoco.xml
+          if-no-files-found: warn
 
-  sonar:
-    name: SonarCloud Scan
+  # REPORTS: consommer les ARTIFACTS pour afficher les tests (preuve d'usage)
+  report-tests:
+    name: Test Reports (from artifacts)
     runs-on: ubuntu-latest
-    needs: [front, back]
+    needs: [front-tests, back-tests]
+    if: success() || failure()
+    steps:
+      - name: Report Front (JUnit)
+        uses: phoenix-actions/test-reporting@v15
+        with:
+          artifact: test-results-front
+          name: "Front - Karma/Jasmine"
+          path: "**/*.xml"
+          reporter: "java-junit"
+
+      - name: Report Back (JUnit)
+        uses: phoenix-actions/test-reporting@v15
+        with:
+          artifact: test-results-back
+          name: "Back - JUnit"
+          path: "*.xml"
+          reporter: "java-junit"
+
+  # SONAR FRONT: télécharge coverage (artifact) puis scanne front/
+  sonar-front:
+    name: SonarCloud - Front
+    runs-on: ubuntu-latest
+    needs: [front-tests]
+    # Sonar sur push + Pull Request internes 
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download coverage (Front)
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
-  
-      # --- BACK: compiler + tests pour générer classes + jacoco.xml
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: "17"
-          distribution: temurin
-  
-      - name: Build back (tests + JaCoCo)
-        run: mvn -B -f back/pom.xml clean verify
-        # produit:
-        #   back/target/classes
-        #   back/target/site/jacoco/jacoco.xml
-  
-      # --- FRONT: tests avec couverture pour lcov.info
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-          cache-dependency-path: "front/package-lock.json"
-  
-      - name: Install front deps
-        working-directory: front
-        run: npm ci
-  
-      - name: Test front (headless + coverage)
-        working-directory: front
-        run: npm run test:ci -- --code-coverage
-        # produit: front/coverage/bobapp/lcov.info
-  
-      # --- Scan Sonar
-      - name: Sonar scan (front + back)
+          name: coverage-front
+          path: front/coverage/bobapp
+
+      - name: Sonar scan (front/)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-        # with:
-        #   args: -Dsonar.qualitygate.wait=true
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}  
+          SONAR_HOST_URL: https://sonarcloud.io 
+        with:
+          projectBaseDir: front
+          args: -Dsonar.qualitygate.wait=true
 
-  docker-publish:
-    name: Build & Push Docker images
+  # SONAR BACK: télécharge coverage (artifact) puis scanne back/
+  sonar-back:
+    name: SonarCloud - Back
     runs-on: ubuntu-latest
-    needs: [front, back, sonar]
-    # Publie uniquement sur push de main dans mon fork 
+    needs: [back-tests]
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download coverage (Back)
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-back
+          path: back/target/site/jacoco
+
+      - name: Sonar scan (back/)
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}    # <- secret BACK
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          projectBaseDir: back
+          args: -Dsonar.qualitygate.wait=true
+
+  # DOCKER: build & push séparés (front/back) uniquement sur push de main
+  docker-publish-front:
+    name: Docker Publish - FRONT
+    runs-on: ubuntu-latest
+    needs: [report-tests, sonar-front]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta_front
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front
+          tags: |
+            type=raw,value=latest
+            type=ref,event=branch
+            type=sha
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./front
+          file: ./front/Dockerfile
+          push: true
+          tags: ${{ steps.meta_front.outputs.tags }}
+          labels: ${{ steps.meta_front.outputs.labels }}
 
-    - name: Check Docker Hub secrets
-      run: |
-        [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] || { echo "Missing DOCKERHUB_USERNAME"; exit 1; }
-        [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ] || { echo "Missing DOCKERHUB_TOKEN"; exit 1; }
+  # DOCKER: build & push séparés (front/back) uniquement sur push de main
+docker-publish-front:
+  name: Docker Publish - FRONT
+  runs-on: ubuntu-latest
+  needs: [report-tests, sonar-front]
+  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
+  steps:
+    - uses: actions/checkout@v4
 
     - name: Login to Docker Hub
       uses: docker/login-action@v3
@@ -162,40 +199,44 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Docker meta (front)
-      id: meta_front
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front
-        tags: |
-          type=raw,value=latest
-          type=ref,event=branch
-          type=sha
-
     - name: Build & push (front)
       uses: docker/build-push-action@v6
       with:
         context: ./front
         file: ./front/Dockerfile
         push: true
-        tags: ${{ steps.meta_front.outputs.tags }}
-        labels: ${{ steps.meta_front.outputs.labels }}
-
-    - name: Docker meta (back)
-      id: meta_back
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-back
         tags: |
-          type=raw,value=latest
-          type=ref,event=branch
-          type=sha
+          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:main
+          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:${{ github.sha }}
+        labels: |
+          org.opencontainers.image.source=${{ github.repository }}
+          org.opencontainers.image.revision=${{ github.sha }}
 
-    - name: Build & push (back)
-      uses: docker/build-push-action@v6
-      with:
-        context: ./back
-        file: ./back/Dockerfile
-        push: true
-        tags: ${{ steps.meta_back.outputs.tags }}
-        labels: ${{ steps.meta_back.outputs.labels }}
+  docker-publish-back:
+    name: Docker Publish - BACK
+    runs-on: ubuntu-latest
+    needs: [report-tests, sonar-back]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
+    steps:
+      - uses: actions/checkout@v4
+  
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+  
+      - name: Build & push (back)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./back
+          file: ./back/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-back:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-back:main
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-back:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
