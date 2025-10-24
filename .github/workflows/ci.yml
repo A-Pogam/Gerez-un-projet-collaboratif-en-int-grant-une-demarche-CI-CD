@@ -103,36 +103,33 @@ jobs:
           path: "*.xml"
           reporter: "java-junit"
 
-  # SONAR FRONT: télécharge coverage (artifact) puis scanne front/
+    # SONAR FRONT: télécharge coverage (artifact) puis scanne front/
   sonar-front:
-    name: Sonar scan (front/)
+    name: SonarCloud - Front
     runs-on: ubuntu-latest
     needs: [front-tests]
-    # Sonar sur push + Pull Request internes 
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
-
       - name: Download coverage (Front)
         uses: actions/download-artifact@v4
         with:
           name: coverage-front
           path: front/coverage/bobapp
-
       - name: Sonar scan (front/)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}  
-          SONAR_HOST_URL: https://sonarcloud.io 
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}
+          SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: front
-          args: -Dsonar.qualitygate.wait=true
+          args: -Dsonar.projectBaseDir=front -Dsonar.qualitygate.wait=true
 
-  # SONAR BACK: télécharge coverage (artifact) puis scanne back/
+  # SONAR BACK: recompile (no tests) pour avoir target/classes, télécharger jacoco, puis scanner back/
   sonar-back:
-    name: Sonar scan (back/)
+    name: SonarCloud - Back
     runs-on: ubuntu-latest
     needs: [back-tests]
     if: |
@@ -140,21 +137,29 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      # Rebuild rapide pour générer back/target/classes (les tests ont déjà tourné)
+      - name: Build back (no tests)
+        working-directory: back
+        run: mvn -B -DskipTests package
+      # Récupère le coverage jacoco publié par back-tests (si besoin)
       - name: Download coverage (Back)
         uses: actions/download-artifact@v4
         with:
           name: coverage-back
           path: back/target/site/jacoco
-
       - name: Sonar scan (back/)
         uses: SonarSource/sonarqube-scan-action@v6
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}    # <- secret BACK
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: back
-          args: -Dsonar.qualitygate.wait=true
+          args: -Dsonar.projectBaseDir=back -Dsonar.qualitygate.wait=true
 
   # DOCKER: build & push séparés (front/back) uniquement sur push de main
   docker-publish-front:
@@ -164,54 +169,24 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
-        id: meta_front
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front
-          tags: |
-            type=raw,value=latest
-            type=ref,event=branch
-            type=sha
-      - uses: docker/build-push-action@v6
+      - name: Build & push (front)
+        uses: docker/build-push-action@v6
         with:
           context: ./front
           file: ./front/Dockerfile
           push: true
-          tags: ${{ steps.meta_front.outputs.tags }}
-          labels: ${{ steps.meta_front.outputs.labels }}
-
-  # DOCKER: build & push séparés (front/back) uniquement sur push de main
-docker-publish-front:
-  name: Docker Publish - FRONT
-  runs-on: ubuntu-latest
-  needs: [report-tests, sonar-front]
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
-  steps:
-    - uses: actions/checkout@v4
-
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Build & push (front)
-      uses: docker/build-push-action@v6
-      with:
-        context: ./front
-        file: ./front/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:main
-          ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:${{ github.sha }}
-        labels: |
-          org.opencontainers.image.source=${{ github.repository }}
-          org.opencontainers.image.revision=${{ github.sha }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:main
+            ${{ secrets.DOCKERHUB_USERNAME }}/bobapp-front:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
   docker-publish-back:
     name: Docker Publish - BACK
@@ -220,13 +195,11 @@ docker-publish-front:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository_owner == 'A-Pogam'
     steps:
       - uses: actions/checkout@v4
-  
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-  
       - name: Build & push (back)
         uses: docker/build-push-action@v6
         with:
