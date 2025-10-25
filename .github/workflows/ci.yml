@@ -113,13 +113,18 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
+
+      # Télécharge l'artifact à la racine pour garder front/coverage/bobapp/lcov.info tel quel
       - name: Download coverage (Front)
         uses: actions/download-artifact@v4
         with:
           name: coverage-front
-          path: front/coverage/bobapp
-      - name: Sonar scan (front/)
-        uses: SonarSource/sonarqube-scan-action@v6
+          path: .
+
+      - name: SonarCloud scan (front)
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: front
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -134,21 +139,28 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: maven
-      - name: Build back (no tests)   # pour avoir back/target/classes
+
+      - name: Build back (no tests)
         working-directory: back
         run: mvn -B -DskipTests package
-      - name: Download coverage (Back) # jacoco.xml depuis l’artifact
+
+      # Télécharge l'artifact à la racine pour garder back/target/site/jacoco/jacoco.xml tel quel
+      - name: Download coverage (Back)
         uses: actions/download-artifact@v4
         with:
           name: coverage-back
-          path: back/target/site/jacoco
-      - name: Sonar scan (back/)
-        uses: SonarSource/sonarqube-scan-action@v6
+          path: .
+
+      - name: SonarCloud scan (back)
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          projectBaseDir: back
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
           SONAR_HOST_URL: https://sonarcloud.io
