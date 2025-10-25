@@ -125,11 +125,10 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: front
-          args:  
+          args: >
             -Dsonar.projectBaseDir=front
             -Dsonar.organization=a-pogam
             -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
-            -X
 
   # SONAR BACK: recompile (no tests) pour avoir target/classes, télécharger jacoco, puis scanner back/
   sonar-back:
@@ -146,12 +145,10 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
-      # Rebuild rapide pour générer back/target/classes (les tests ont déjà tourné)
-      - name: Build back (no tests)
+      - name: Build back (no tests)   # pour avoir back/target/classes
         working-directory: back
         run: mvn -B -DskipTests package
-      # Récupère le coverage jacoco publié par back-tests (si besoin)
-      - name: Download coverage (Back)
+      - name: Download coverage (Back) # jacoco.xml depuis l’artifact
         uses: actions/download-artifact@v4
         with:
           name: coverage-back
@@ -163,12 +160,10 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: back
-          args: 
-            -Dsonar.projectBaseDir=front
+          args: >
+            -Dsonar.projectBaseDir=back
             -Dsonar.organization=a-pogam
-            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
-            -Dsonar.qualitygate.wait=true
-            -X
+            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_back
 
   # DOCKER: build & push séparés (front/back) uniquement sur push de main
   docker-publish-front:
