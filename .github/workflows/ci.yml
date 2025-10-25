@@ -128,7 +128,6 @@ jobs:
           args: >
             -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
             -Dsonar.organization=a-pogam
-            -Dsonar.branch.name=main
             -Dsonar.javascript.lcov.reportPaths=coverage/bobapp/lcov.info
           
         env:
@@ -170,7 +169,6 @@ jobs:
           args: >
             -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_back
             -Dsonar.organization=a-pogam
-            -Dsonar.branch.name=main
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
