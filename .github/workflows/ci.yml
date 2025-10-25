@@ -127,7 +127,6 @@ jobs:
           projectBaseDir: front
           args: >
             -Dsonar.projectBaseDir=front
-            -Dsonar.organization=a-pogam
             -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
 
   # SONAR BACK: recompile (no tests) pour avoir target/classes, télécharger jacoco, puis scanner back/
@@ -162,7 +161,6 @@ jobs:
           projectBaseDir: back
           args: >
             -Dsonar.projectBaseDir=back
-            -Dsonar.organization=a-pogam
             -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_back
 
   # DOCKER: build & push séparés (front/back) uniquement sur push de main
