@@ -125,7 +125,11 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: front
-          args: -Dsonar.projectBaseDir=front -Dsonar.qualitygate.wait=true
+          args:  
+            -Dsonar.projectBaseDir=front
+            -Dsonar.organization=a-pogam
+            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
+            -X
 
   # SONAR BACK: recompile (no tests) pour avoir target/classes, télécharger jacoco, puis scanner back/
   sonar-back:
@@ -159,7 +163,12 @@ jobs:
           SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: back
-          args: -Dsonar.projectBaseDir=back -Dsonar.qualitygate.wait=true
+          args: 
+            -Dsonar.projectBaseDir=front
+            -Dsonar.organization=a-pogam
+            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
+            -Dsonar.qualitygate.wait=true
+            -X
 
   # DOCKER: build & push séparés (front/back) uniquement sur push de main
   docker-publish-front:
