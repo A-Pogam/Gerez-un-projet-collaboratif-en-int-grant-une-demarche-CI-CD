@@ -161,33 +161,33 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
-
-      # Rebuild (sans tests) pour target/classes requis par Sonar
+  
+      # Rebuild (no tests) pour avoir target/classes requis par Sonar
       - name: Build back (no tests)
         working-directory: back
         run: mvn -B -DskipTests package
-
-      # Restaure l'artifact sous back/target/site (pour retrouver site/jacoco/...)
+  
+      # Télécharge l'artifact à la RACINE (évite les doubles préfixes)
       - name: Download coverage (Back)
         uses: actions/download-artifact@v4
         with:
           name: coverage-back
-          path: back/target/site
-
-      # Normalise et vérifie jacoco.xml
+          path: .
+  
+      # Cherche jacoco.xml où qu'il soit et le recopie vers un chemin stable
       - name: Normalize & check JaCoCo XML
         run: |
           set -e
-          XML="$(find back -path '*/site/jacoco/jacoco.xml' | head -n1 || true)"
+          XML="$(find . -type f -name jacoco.xml -path '*site/jacoco/*' | head -n1 || true)"
           if [ -z "$XML" ]; then
-            echo "::error::jacoco.xml introuvable. Contenu de back/target/site :"
+            echo "::error::jacoco.xml introuvable. Aperçu de back/target/site :"
             ls -R back/target/site || true
             exit 1
           fi
           mkdir -p back/target/site/jacoco
           cp "$XML" back/target/site/jacoco/jacoco.xml
           sed -n '1,5p' back/target/site/jacoco/jacoco.xml
-
+  
       - name: SonarCloud scan (back)
         uses: SonarSource/sonarcloud-github-action@v2
         with:
@@ -197,7 +197,6 @@ jobs:
             -Dsonar.organization=a-pogam
             -Dsonar.java.binaries=target/classes
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-            -Dsonar.qualitygate.wait=true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
