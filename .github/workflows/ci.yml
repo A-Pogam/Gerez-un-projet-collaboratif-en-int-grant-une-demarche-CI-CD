@@ -123,12 +123,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}
           SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: front
-          args: >
-            -Dsonar.projectBaseDir=front
-            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_front
-
+        
   # SONAR BACK: recompile (no tests) pour avoir target/classes, télécharger jacoco, puis scanner back/
   sonar-back:
     name: SonarCloud - Back
@@ -157,12 +152,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
           SONAR_HOST_URL: https://sonarcloud.io
-        with:
-          projectBaseDir: back
-          args: >
-            -Dsonar.projectBaseDir=back
-            -Dsonar.projectKey=a-pogam_Gerez-un-projet-collaboratif-en-int-grant-une-demarche-CI-CD_back
-
+        
   # DOCKER: build & push séparés (front/back) uniquement sur push de main
   docker-publish-front:
     name: Docker Publish - FRONT
