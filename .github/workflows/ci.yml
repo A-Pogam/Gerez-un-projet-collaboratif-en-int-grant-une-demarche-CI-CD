@@ -71,7 +71,7 @@ jobs:
           path: back/target/surefire-reports/*.xml
           if-no-files-found: warn
 
-      # Artifacts: JaCoCo (HTML + XML) — on uploade la racine jacoco
+      # Artifacts: JaCoCo (HTML + XML) —  uploade la racine jacoco
       - name: Upload coverage (Back)
         uses: actions/upload-artifact@v4
         with:
@@ -178,15 +178,16 @@ jobs:
       - name: Normalize & check JaCoCo XML
         run: |
           set -e
-          XML="$(find . -type f -name jacoco.xml -path '*site/jacoco/*' | head -n1 || true)"
+          XML="$(find . -type f -name jacoco.xml | head -n1 || true)"
           if [ -z "$XML" ]; then
-            echo "::error::jacoco.xml introuvable. Aperçu de back/target/site :"
-            ls -R back/target/site || true
+            echo "::error::jacoco.xml introuvable. Contenu de l'artifact téléchargé :"
+            ls -R .
             exit 1
           fi
           mkdir -p back/target/site/jacoco
           cp "$XML" back/target/site/jacoco/jacoco.xml
           sed -n '1,5p' back/target/site/jacoco/jacoco.xml
+
   
       - name: SonarCloud scan (back)
         uses: SonarSource/sonarcloud-github-action@v2
