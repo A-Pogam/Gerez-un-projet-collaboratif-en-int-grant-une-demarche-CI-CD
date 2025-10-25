@@ -25,31 +25,26 @@ jobs:
           node-version: "18"
           cache: npm
           cache-dependency-path: front/package-lock.json
-
       - run: npm ci
       - run: npm run build --if-present
-      - name: Test (headless) + coverage
-        run: npm run test:ci -- --code-coverage
+      # Tests headless + couverture (produit coverage/bobapp/lcov.info)
+      - run: npm run test:ci -- --code-coverage
 
-      # Sanity check pour éviter un artifact vide
-      - name: Check LCOV exists
-        run: |
-          test -f coverage/bobapp/lcov.info || {
-            echo "::error::front coverage manquante"; ls -R coverage || true; exit 1; }
-
+      # Artifacts: résultats de tests (JUnit XML)
       - name: Upload test results (Front)
         uses: actions/upload-artifact@v4
         with:
           name: test-results-front
           path: front/reports/**/*.xml
-          if-no-files-found: error
+          if-no-files-found: warn
 
+      # Artifacts: couverture (HTML + lcov.info) — on uploade toute la racine coverage
       - name: Upload coverage (Front)
         uses: actions/upload-artifact@v4
         with:
           name: coverage-front
           path: front/coverage/**
-          if-no-files-found: error
+          if-no-files-found: warn
 
   # ---------- BACK: tests + JaCoCo -> ARTIFACTS ----------
   back-tests:
@@ -65,29 +60,26 @@ jobs:
           distribution: temurin
           java-version: "17"
           cache: maven
+      # Génère target/classes + target/site/jacoco/jacoco.xml
+      - run: mvn -B clean verify
 
-      - name: Maven verify (tests + JaCoCo)
-        run: mvn -B clean verify
-
-      # Sanity check pour éviter un artifact vide
-      - name: Check JaCoCo XML exists
-        run: |
-          test -f target/site/jacoco/jacoco.xml || {
-            echo "::error::jacoco.xml manquant"; ls -R target/site || true; exit 1; }
-
+      # Artifacts: résultats de tests (JUnit XML)
       - name: Upload test results (Back)
         uses: actions/upload-artifact@v4
         with:
           name: test-results-back
           path: back/target/surefire-reports/*.xml
-          if-no-files-found: error
+          if-no-files-found: warn
 
+      # Artifacts: JaCoCo (HTML + XML) — on uploade la racine jacoco
       - name: Upload coverage (Back)
         uses: actions/upload-artifact@v4
         with:
           name: coverage-back
-          path: back/target/site/jacoco/**
-          if-no-files-found: error
+          path: |
+            back/target/site/jacoco/**
+            back/target/site/jacoco/jacoco.xml
+          if-no-files-found: warn
 
   # ---------- REPORTS (affichage JUnit) ----------
   report-tests:
@@ -121,20 +113,22 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
 
-      # Restaure l'artifact à la RACINE pour conserver les chemins originaux
+      # Restaure l'artifact sous front/coverage (pour retrouver coverage/bobapp/...)
       - name: Download coverage (Front)
         uses: actions/download-artifact@v4
         with:
           name: coverage-front
-          path: .
+          path: front/coverage
 
-      # Recherche robuste + normalisation vers un chemin stable
+      # Normalise le chemin LCOV et vérifie sa présence
       - name: Normalize & check LCOV
         run: |
           set -e
-          LCOV="$(find . -path './front/coverage/*/lcov.info' -o -path './coverage/*/lcov.info' | head -n1 || true)"
+          LCOV="$(find front/coverage -name lcov.info | head -n1 || true)"
           if [ -z "$LCOV" ]; then
-            echo "::error::lcov.info introuvable"; ls -R front/coverage || true; exit 1
+            echo "::error::lcov.info introuvable. Contenu de front/coverage :"
+            ls -R front/coverage || true
+            exit 1
           fi
           mkdir -p front/coverage/sonar
           cp "$LCOV" front/coverage/sonar/lcov.info
@@ -168,25 +162,27 @@ jobs:
           java-version: "17"
           cache: maven
 
-      # Rebuild (no tests) pour avoir target/classes
+      # Rebuild (sans tests) pour target/classes requis par Sonar
       - name: Build back (no tests)
         working-directory: back
         run: mvn -B -DskipTests package
 
-      # Restaure l'artifact à la RACINE pour conserver les chemins originaux
+      # Restaure l'artifact sous back/target/site (pour retrouver site/jacoco/...)
       - name: Download coverage (Back)
         uses: actions/download-artifact@v4
         with:
           name: coverage-back
-          path: .
+          path: back/target/site
 
-      # Recherche robuste + normalisation vers un chemin stable
+      # Normalise et vérifie jacoco.xml
       - name: Normalize & check JaCoCo XML
         run: |
           set -e
-          XML="$(find . -path './back/target/site/jacoco/jacoco.xml' -o -path './**/site/jacoco/jacoco.xml' | head -n1 || true)"
+          XML="$(find back -path '*/site/jacoco/jacoco.xml' | head -n1 || true)"
           if [ -z "$XML" ]; then
-            echo "::error::jacoco.xml introuvable"; ls -R back/target/site || true; exit 1
+            echo "::error::jacoco.xml introuvable. Contenu de back/target/site :"
+            ls -R back/target/site || true
+            exit 1
           fi
           mkdir -p back/target/site/jacoco
           cp "$XML" back/target/site/jacoco/jacoco.xml
