@@ -15,7 +15,7 @@ permissions:
 jobs:
   # ---------- FRONT: tests + coverage -> ARTIFACTS ----------
   front-tests:
-    if: ${{ github.event_name == 'pull_request'}}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     name: Front tests & coverage (artifact)
     runs-on: ubuntu-latest
     defaults:
@@ -51,7 +51,7 @@ jobs:
 
   # ---------- BACK: tests + JaCoCo -> ARTIFACTS ----------
   back-tests:
-    if: ${{ github.event_name == 'pull_request'}}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     name: Back tests & coverage (artifact)
     runs-on: ubuntu-latest
     defaults:
